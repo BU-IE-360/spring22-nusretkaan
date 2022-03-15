@@ -1,4 +1,4 @@
-## Welcome to GitHub Pages
+## Welcome to My Page
 
 You can use the [editor on GitHub](https://github.com/BU-IE-360/spring22-nusretkaanpolat/edit/gh-pages/index.md) to maintain and preview the content for your website in Markdown files.
 

@@ -1,0 +1,274 @@
+# Homework 1: Data Analysis on 4 Measures from EVDS and Google Trends
+## Nusret Kaan Polat - 2018402024
+
+### 1. Introduction
+
+In this report, relations between 3 datasets taken from EVDS will be examined and it will be supoorted by Google Trend data. Datasets from EVDS are USD/TR exchange rates,Electrity, Gas, and other fuels price index, and Electrcity consumption. Before we start to examine datasets, it can be stated that we can expect strong relations between these datasets due to the fact that considerable amount of Turkey's energy consumption is supplied by resources coming from foreign countries. Since US is accepted currency for these transactions in the world, it may affect Energy prices. 
+
+
+
+### 2.USD/TRY Rates 
+
+In this part of the report, USD/TRY rates will be examined from 2009 to 2022. To get better insights from the data we have, we will use some plots.
+
+```{r data manipulation, include=FALSE}
+require(openxlsx) #library(openxlsx)
+require(ggplot2)
+require(data.table)
+require(skimr)
+require(GGally)
+require(ggcorrplot)
+require(forecast)
+require(lubridate)
+setwd("/Users/nusretkaanpolat/Desktop")
+data_main <- read.xlsx("EVDS.xlsx") #read USD,Gold,and Price index data 
+data_main <- data_main[1:150,] # in the last column we have NA values so we have not used it. 
+data_main
+str(data_main)
+data_main$TP.MK.KUL.YTL=as.numeric(data_main$TP.MK.KUL.YTL) #convert chr data to numeric
+data_main$TP.DK.USD.A.YTL=as.numeric(data_main$TP.DK.USD.A.YTL)#convert chr data to numeric
+data_main$Tarih=paste(data_main$Tarih,"/01",sep ="") # Because we have only have year and month info in the original set, I added day as 01 for each month to convert it easily to day format o/w as.Date function did not work. 
+data_main$Tarih=as_date(data_main$Tarih, format="%Y/%m/%d") #convert chr to date
+data_main=setDT(data_main) #convert dataframe to data.table format to make data manipulation easy
+data_main
+str(data_main)
+ins_data=skim(data_main)
+ins_data
+head(data_main)
+data_main[,year:=format(Tarih,"%Y")]
+```
+USD/TRY rate can be seen in the following as a line plot:
+```{R line plot for USD/TRY Rate, echo=FALSE,echo=FALSE,fig.align="center"}
+ggplot(data_main, aes(x=Tarih, y=TP.DK.USD.A.YTL)) + 
+  geom_line()+
+  labs(title = "USD/TRY Rates vs Date",
+       x = "Date",
+       y = "USD / TRY Rate")+
+  theme(plot.title = element_text(hjust=0.5))+
+  scale_x_date(date_breaks = "12 month",
+               date_labels = "%Y",
+               date_minor_breaks = "1 month") +
+  scale_y_continuous(breaks = seq(from = 0,to = 15,by = 0.5),
+                     minor_breaks = seq(from = 0,to = 15,by = 0.1))
+
+```
+
+It can be easily noticed that USD/TRY rate has been showing increasing trend so far. Especially, there is a huge increase between 2021 and 2022 compared to former years,so it can be noted to analyze whether there is a similar incresase in the other data sets. 
+
+To be able to see this increasing trend easily, it is logical to print boxplots for each year since their some statistics such as  median,mean etc. will give us some insights to compare years. 
+
+```{R Boxplot for USD/TRY rates,echo=FALSE,fig.align="center"}
+ggplot(data_main, aes(x=year, y=TP.DK.USD.A.YTL))+
+  geom_boxplot(aes(y=TP.DK.USD.A.YTL,fill=year))+
+  scale_y_continuous(breaks = seq(from = 0,to = 15,by = 0.5),
+                     minor_breaks = seq(from = 0,to = 15,by = 0.1)) +
+  labs(title="USD/TRY Rates vs Date by Year",
+       y = "USD/TRY Rates",
+       x = "Date") +
+  theme(plot.title = element_text(hjust=0.5))
+
+```
+It can deduced from the boxplotes that USD/TRY rate has been incresaing as we showed in the line plot. Median values are increasing steadily. In 2021, there are some outliers, which can be interpreted as signal for sharp increase between 2021 and 2022. Also, there is a high level of fluctuation ,rooted from some political issues in Turkey, in 2018 in the line graph. Actually, we see this fluctuation effect as the high range of quartiles in the box plot. 
+
+Lastly, To be aware of these fluctuations in a year, it may be logical to see the distribution of rates in a year;
+
+```{R Histogram for USD/TRY rates,echo=FALSE,fig.align="center"}
+ggplot(data_main, aes(x = TP.DK.USD.A.YTL)) + 
+  geom_histogram(bins=50,alpha=0.6,aes(color=year,fill=year)) +
+  facet_wrap(year~.,scales="free_x",ncol = 3) +
+  labs(title = "USD/TRY Rates vs Date by Year",
+       y = "Frequency",
+       x = "USD / TRY Rate")+
+  theme(plot.title = element_text(hjust=0.5))
+
+```
+
+As we stated in the previous plots, the histograms also support our findings since;
+ 1- X-axes values have been increasing.
+ 2- We can see outlier values in 2021 and wide range of distribution for highly         fluctuated years.
+ 
+ 
+## 3. Electricity, Gas, and Other Fuels Price Index
+
+In this section, we will print same plots we printed in the previous section to analyze the relation between energy prices and exchange rate. As stated in the introduction, we expect to see high level of dependency between these because Turkey's dependency on foreign countries in energy consumption. 
+
+Firstly, the line graph for prices can be seen: 
+
+```{R line graph for price index,echo=FALSE,fig.align="center"}
+ggplot(data_main, aes(x=Tarih, y=TP.FG.J045)) + 
+  geom_line()+
+  labs(title = "Electricity, Gas, and Other Fuels Price vs Date",
+       x = "Date",
+       y = "Electricity, Gas, and Other Fuels Price ")+
+  theme(plot.title = element_text(hjust=0.5))+
+  scale_x_date(date_breaks = "12 month",
+               date_labels = "%Y",
+               date_minor_breaks = "1 month") +
+  scale_y_continuous(breaks = seq(from = 0,to = 1200,by = 100),
+                     minor_breaks = seq(from = 0,to = 1200,by = 10))
+
+
+```
+
+As we expected, there is also an increasing trend in prices. Especially, we can see the same sharp increase between 2021 and 2022 in both datasets. Moreover, the high fluctuation rate between 2018 and 2019 ,we see in the previous set, can also be noticed in the price dataset. To analyze these fluctuation insight, it is useful to print boxplots:
+
+```{R boxplot for prices,echo=FALSE,fig.align="center"}
+ggplot(data_main, aes(x=year, y=TP.FG.J045))+
+  geom_boxplot(aes(y=TP.FG.J045,fill=year))+
+  scale_y_continuous(breaks = seq(from = 0,to = 1200,by = 100),
+                     minor_breaks = seq(from = 0,to = 1200,by = 10)) +
+  labs(title="Electricity, Gas, and Other Fuels Price Distribution by Year",
+       y = "Electricity, Gas, and Other Fuels Price",
+       x = "Date") +
+  theme(plot.title = element_text(hjust=0.5))
+
+```
+
+Similar patterns in terms of changes in ranges of boxplots are seen with exchange rate dataset. In price dataset, we also see that there is a high quartile range for high fluctuated years, which shows there is probable relations between these datasets.
+
+Lastly, it may be great to print histogram to see distribution of prices because maybe we can further analyze some questions. Namely, even if exchange rate has an effect on energy prices, we need to ask what the price sensitivty is. As a question, do we see instant price increase or decrease depending on changing exchange rate? If yes, we need to ask what is limit of this increase because we can not expect goverment to increase price so much since it needs to compansate some portion of that because of some political concerns. 
+
+
+```{r histogram for price index,echo=FALSE,fig.align="center"}
+ggplot(data_main, aes(x = TP.FG.J045)) + 
+  geom_histogram(bins=30,alpha=0.6,aes(color=year,fill=year)) +
+  facet_wrap(year~.,scales="free_x",ncol = 3) +
+  labs(title = "Electricity, Gas, and Other Fuels Price Distribution by Year",
+       x = "Electricity, Gas, and Other Fuels Price",
+       y = "Frequency")+
+  theme(plot.title = element_text(hjust=0.5))
+```
+After comparing boxplots we have, it is useful to give an example to clarify my claim. If we compare distribution of prices and exchange rates in 2021, price values were mostly grouped. For different exchange rates, we are seeing same prices. Overall, price values are closer to each other compared to the closeness of exchange rates. 
+
+
+### 4.Electricity Consumption Data
+It seems that we have analyzed positive correlations so far. On the other hand, electricity consumption data may give us insights from the other perspective. First of all, I do not expect so sharp decreases in the consumption according to prices and exchange rates because electricity consumption is must in our life and people can reduce it up to some limit because of price increases. Moreover, consumption is not made by only individuals. There are other parties and the most important of them is industry that uses electricity to produce goods. So its limitation capacity is more limited compared to households. 
+
+Because we do not have data before xxx, we will analyze data starting from xxx:
+
+```{r data manipulation for electricity consumption, include=FALSE}
+consumption_data<-read.xlsx("electricityconsumption.xlsx")
+consumption_data=setDT(consumption_data)
+
+consumption_data$TP.ELEKTUKETIM.TKT1=as.numeric(consumption_data$TP.ELEKTUKETIM.TKT1)
+consumption_data$Date=paste(consumption_data$Date,"/01",sep="")
+
+consumption_data$Date=as_date(consumption_data$Date, format="%Y/%m/%d")
+consumption_data[,year:=format(Date,"%Y")]
+consumption_data[,month:=format(Date,"%m")]
+str(consumption_data)
+
+daily_data <- read.xlsx("dailyconsumption.xlsx")
+daily_data=setDT(daily_data)
+
+daily_data$TP.ELEKTUKETIM.TKT1=as.numeric(daily_data$TP.ELEKTUKETIM.TKT1)
+daily_data$Tarih=as_date(daily_data$Tarih, format="%d/%m/%Y")
+
+
+
+daily_rate<-read.xlsx("dailyrates.xlsx")
+daily_rate=setDT(daily_rate)
+daily_rate$TP.DK.USD.A.YTL=as.numeric(daily_rate$TP.DK.USD.A.YTL)
+daily_rate$Tarih=as_date(daily_rate$Tarih, format="%d/%m/%Y")
+
+
+str(daily_rate)
+
+
+
+
+```
+
+```{r for consumption line plot, echo=FALSE, message=FALSE, warning=FALSE,fig.align="center"}
+
+ggplot(consumption_data, aes(x=consumption_data$Date, y=consumption_data$TP.ELEKTUKETIM.TKT1)) + 
+  geom_line()+
+  labs(title = "Electricity Consumption vs Date",
+       x = "Date",
+       y = "Electricity Consumption ")+
+  theme(plot.title = element_text(hjust=0.5))
+```
+When we look at the graph, it can be seen that there is no similar pattern we have in the former graphs. There may be several reasons of that:
+  1- Electricity consumption depends on seasons, so it increases in summer and winter. 
+  2- Because there is a growing population and also growing industry, it is inevitable to see increasing trend in the data.
+  However, these reasons do not mean exchange rates or prices are not related with consumption data. If we can limit data we used to prevent effects of these reasons,    we may find some insights so I recommend to look at energy consumption in a month that has highly fluctuated exchange rates or prices to understand consumer behavior. 
+  
+```{r for daily, echo=FALSE, message=FALSE, warning=FALSE,fig.align="center"}
+ggplot(daily_data, aes(x=daily_data$Tarih, y=daily_data$TP.ELEKTUKETIM.TKT1)) + 
+  geom_line()+
+  labs(title = "Daily Electricity Consumption vs Date",
+       x = "Date",
+       y = "Daily Electricity Consumption ") +
+  theme(plot.title = element_text(hjust=0.5))
+
+ggplot(daily_rate, aes(x=daily_rate$Tarih, y=daily_rate$TP.DK.USD.A.YTL)) + 
+  geom_line()+
+  labs(title = "Daily USD/TRY Rate",
+       x = "Date",
+       y = "Daily USD/TRY Rate ")+
+  theme(plot.title = element_text(hjust=0.5))
+ 
+```
+When we analyze daily electricity consumption and daily exchange rates datasets, again we do not see so clear deduction as we have former graphs. However, the sharp exchange rate increase between 15-Nov and 15-Dec have affected the trend of electricity consumption in total. It can be seen that we have lower amount of consumption in total in that interval.
+
+### 5. Trend Data and Comparison
+
+
+```{r for trend electricty, echo=FALSE, message=FALSE, warning=FALSE,fig.align="center"}
+
+elec_data<- read.xlsx("multiTimeline-2.xlsx")
+#elec_data$Month=as.Date(elec_data$Month,format="%Y-%m")
+
+#str(elec_data)
+
+elec_data$Month=gsub("-","/",elec_data$Month)
+elec_data$Month=paste(elec_data$Month,"/01",sep="")
+elec_data$Month=as.Date(elec_data$Month,format="%Y/%m/%d")
+ggplot(elec_data, aes(x=Month,y=`elektrik.zam:.(Turkey)`)) + 
+  geom_line()+
+  labs(title = "Search Results for 'Elektrik Zam' ",
+       x = "Date",
+       y = "Frequency") +
+  theme(plot.title = element_text(hjust=0.5))
+
+
+###
+#str(data_main)
+ggplot(data_main[Tarih>="2013-10-01" & Tarih<="2022-03-01"], aes(x=Tarih, y=TP.FG.J045)) + 
+  geom_line()+
+  labs(title = "Electricity, Gas, and Other Fuels Price vs Date",
+       x = "Date",
+       y = "Electricity, Gas, and Other Fuels Price ")+
+  theme(plot.title = element_text(hjust=0.5))+
+  scale_x_date(date_breaks = "12 month",
+               date_labels = "%Y",
+               date_minor_breaks = "1 month") +
+  scale_y_continuous(breaks = seq(from = 0,to = 1200,by = 100),
+                     minor_breaks = seq(from = 0,to = 1200,by = 10))
+
+
+gas_data<- read.xlsx("multiTimeline-21.xlsx")
+#str(gas_data)
+gas_data$Month=gsub("-","/",gas_data$Month)
+gas_data$`doÄŸalgaz.zam:.(Turkey)`=as.numeric(gas_data$`doÄŸalgaz.zam:.(Turkey)`)
+gas_data$Month=paste(gas_data$Month,"/01",sep="")
+gas_data$Month=as.Date(gas_data$Month,format="%Y/%m/%d")
+ggplot(gas_data, aes(x=Month,y=`doÄŸalgaz.zam:.(Turkey)`)) + 
+  geom_line()+
+  labs(title = "Search Results for 'Gas Zam' ",
+       x = "Date",
+       y = "Frequency") +
+  theme(plot.title = element_text(hjust=0.5))
+
+
+###
+```
+When we compare these plot given above, it can be seen that they were shown similar behaviours for some price increase times (eg. mid-2018, mid-2019, end-2021). Therefore, we can say that for sharp price incresases there will be more searchs. Let's look at whether we see same thing for gas searches or not. When gas searches were examined, it was seen that it was shown same behavior with electricity searches. Lastly, the USD/TRY graph which we analyzed firstly has same picks in these dates. 
+
+
+
+### 6.Conclusion 
+
+In this report, we have analyzed different datasets and relations between them. From our analysis, it can be deduced that exchange rates, energy prices, number of searches made by people are somehow have shown similar patterns. On the other hand, when we analyzed datasets closely, it can be also stated that consumers have shown some reductions in consumption related to price incresases while overall trend is increasing in consumption data because of the increase in population and industry. 
+
+

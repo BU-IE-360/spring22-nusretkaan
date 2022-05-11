@@ -1,0 +1,178 @@
+---
+title: "Nusret Kaan Polat HW2"
+output: html_document
+date: '2022-05-11'
+---
+
+```{r setup, include=FALSE,warning=FALSE,message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+In this report, the sales of UGS for every quarter in 2007 will be forecasted by using data coming from years between 2000 and 2006 and by using time series regression models. Some analysis will be made on autocorrelation, seasonality, trend, and independent variables during the report. 
+
+```{r extraction of the data and required libraries,warning=FALSE,message=FALSE}
+#install.packages("corrplot")
+#install.packages("ggcorrplot")
+#install.packages("GGally")
+#install.packages("forecast")
+#install.packages("dplyr")
+#install.packages("RcppRoll")
+#install.packages("readxl")
+#install.packages("lubridate")
+#install.packages("zoo")
+#install.packages("ggplot2")
+#install.packages("scales")
+#install.packages("data.table")
+
+library(corrplot)
+library(ggcorrplot)
+library(GGally)
+library(forecast)
+library(dplyr)
+library(RcppRoll)
+library(readxl)
+library(lubridate)
+library(zoo)
+library(ggplot2)
+library(scales)
+library(data.table)
+data_ugs <- read.csv("IE360_Spring22_HW2_data.csv",colClasses = c("character","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric","numeric"))
+summary(data_ugs) #look at summary of data columns
+str(data_ugs) #control of columns types etc.
+head(data_ugs,n = 5) # look at first 5 elements in the data we have
+data_ugs$Quarter=as.Date(as.yearqtr(data_ugs$Quarter,format="%Y_Q%q"))
+data_ugs_training <- data.table(data_ugs[1:28,])
+data_ugs_to_be_forecasted <- data.table(data_ugs[-(1:28),])
+str(data_ugs_training)
+str(data_ugs_to_be_forecasted)
+
+
+```
+
+## Analysis on Initial Data 
+Firstly, whether the given data is stationary or not needs to be checked. To do it, there are some methods to be used such as visual detection, mean & variance checking over time, checking autocorrelation, and hyphothesis testing. I want to start by plotting the data to observe possible trends, variance stuff etc. When we look at the line graph given below, we can see that there is an decreasing trend and some pick and drops which may show seasonality. To see whether data is stationary in terms of its variance and mean, we can use rolling mean and rolling variance functions shown in the class. On the other, when we look at rolling mean and rolling variance plots, it can be clearly seen that mean is decreasing over time and it violates one of being stationary conditions. However, for rolling variance graph, there is an obvious randomness compared to mean. So, it can not be said that variance violates being stationary.
+
+```{r Initial Plot, echo=FALSE, message=FALSE, warning=FALSE}
+ggp1_1 <- ggplot(data = data_ugs_training,aes(x = Quarter,y = Unleaded.Gasoline.Sale..UGS.))
+
+ggp1_1 + geom_line(color ="black") +
+  geom_smooth(fill = NA, color="orange",linetype = "twodash", size = 0.5) +
+  labs(title = "UGS vs. Time",
+       x = "Time",
+       y = "UGS" )
+
+rolling_mean_analysis=roll_mean(data_ugs_training$Unleaded.Gasoline.Sale..UGS.,align = "left",n = 4)
+# window size is taken as 4 because in total it means a year. 
+rolling_variance_analysis=roll_var(data_ugs_training$Unleaded.Gasoline.Sale..UGS.,align="left", n=4)
+# window size explanation is same as above.
+plot(rolling_mean_analysis,type="line", xlab = "Time", ylab="UGS-Rolling Mean")
+plot(rolling_mean_analysis,type="line", xlab = "Time", ylab="UGS-Rolling Variance") 
+
+
+```
+```{r autocorrelation}
+Acf(data_ugs_training$Unleaded.Gasoline.Sale..UGS.)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+## ACF Analysis
+When we look at autocorrelation plot, it can be seen that there are high correlation values exceeding threshold shown as blue line. These values are for lag 1 and lag 4. High value in lag 4 means that the same quarter for the different years shows somehow related and similar behavior. On the other hand, lag 1 is coming from the overall tendency in the data. Because data has overall behavior over time, namely trend, this causes high correlation at lag 1. 
+
+
+## Start with the first step 
+There is an obvious trend and seasonality in the data coming from analysis we made in the previos sections. So including new columns explaining this trend and seasonality may result in high accuracy in predictions in case we build a model. 
+```{r Adding Trend & Seasonality,warning=FALSE,message=FALSE}
+data_ugs_training$Trend <- 1:nrow(data_ugs_training)
+data_ugs_to_be_forecasted$Trend <-c(29,30,31,32)
+#data_ugs_training$QuarterInfo <- rep(x = c(1,2,3,4),7)
+data_ugs_training$QuarterInfo <- as.factor(quarter(data_ugs_training$Quarter))
+data_ugs_to_be_forecasted$QuarterInfo  <- as.factor(quarter(data_ugs_to_be_forecasted$Quarter))
+str(data_ugs_training)
+str(data_ugs_to_be_forecasted) # to check added columns etc.
+initial_model <- lm(Unleaded.Gasoline.Sale..UGS.~ Trend+QuarterInfo, data_ugs_training)
+summary(initial_model)
+```
+## Comments on first model created
+When we look at the first model we created, it can be seen that we have 0.8966 adj-R squared value. It shows that the big portion of behavior of data can be explained by the seasonality and trend variables added to data. Then we need to check residuals. When we look at the distribution, histogram and autocorrelation of residuals, we can see that it fits partially as we expected. Still we have some significant autocorrelation for some lag values. It does not fit perfectly to normal distribution in the histogram. Lastly, it does not have to have 0 mean and constant variance in the line graph. So we can look the improvent by adding lag 2 value because it has the biggest value.
+```{r Check Residuals}
+checkresiduals(initial_model$residuals)
+initial_model <- lm(Unleaded.Gasoline.Sale..UGS.~ Trend+QuarterInfo, data_ugs_training)
+summary(initial_model)
+```
+
+```{r}
+data_ugs_training$Lag2=lag(data_ugs_training$Unleaded.Gasoline.Sale..UGS.,2)
+second_model <- lm(Unleaded.Gasoline.Sale..UGS.~ Trend+QuarterInfo+Lag2, data_ugs_training)
+summary(second_model)
+```
+## Comments on addition of Lag2 and Correlation Matrix
+When we added Lag2 to the model, the adj-R squared value is increased but lag 2 is not so significant variable so I try to use other regressors firstly then if needed we will again consider lags. 
+To be able to see which regressors are important it is logical to plot correlation matrix. Then we need to search for which regressors are highly correlated with UGS. When we look at the matrix, it can be seen that there are variables such as X..LPG.Vehicles..NLPG./ Price.of.Unleaded.Gasoline..PU. / Price.of.Diesel.Gasoline..PG./ X..Unleaded.Gasoline.Vehicles..NUGV. /X..of.Diesel.Gasoline.Vehicles..NDGV. / GNP.Agriculture / having significant values other than QuarterInfo and Trend that were already determined to be added to the model. 
+```{r}
+data_ugs_training<-select(data_ugs_training,-Lag2)
+```
+
+```{r}
+ggpairs(data_ugs_training,warning=FALSE,message=FALSE)
+
+```
+## The New Model That Considers Seasonality, Trend, and Other Independent Regressors
+When the new model is analyzed, it can be seen that adj-R squared is increased to 0.9613. However, there are some insignificant variables, which may be rooted from the resaon that one variables may already explain the information coming from the other. Therefore, maybe these unsignificant variables may cause lower adjusted square because of loss of degree of freedom. So, I want to try to exclude some unsignificant variables. By excluding each of unsignificant variables one by one, I created new model and one of these models has greater adjusted R square value 0.9635 than the model including all regressors which we determined at the start. "Price.of.Unleaded.Gasoline..PU." variable is excluded.
+```{r}
+Improved_Model <- lm(Unleaded.Gasoline.Sale..UGS.~ Trend+QuarterInfo+X..LPG.Vehicles..NLPG. + Price.of.Unleaded.Gasoline..PU. + Price.of.Diesel.Gasoline..PG.+ X..Unleaded.Gasoline.Vehicles..NUGV. + X..of.Diesel.Gasoline.Vehicles..NDGV. + GNP.Agriculture , data_ugs_training)
+summary(Improved_Model)
+```
+```{r}
+Improved_Model2 <- lm(Unleaded.Gasoline.Sale..UGS.~ Trend+QuarterInfo+Price.of.Unleaded.Gasoline..PU.+ Price.of.Diesel.Gasoline..PG.+ X..Unleaded.Gasoline.Vehicles..NUGV. + X..of.Diesel.Gasoline.Vehicles..NDGV. + GNP.Agriculture , data_ugs_training)
+summary(Improved_Model2)
+```
+
+
+```{r}
+Improved_Model3 <- lm(Unleaded.Gasoline.Sale..UGS.~ Trend+QuarterInfo+X..LPG.Vehicles..NLPG. +  Price.of.Diesel.Gasoline..PG.+ X..Unleaded.Gasoline.Vehicles..NUGV. + X..of.Diesel.Gasoline.Vehicles..NDGV. + GNP.Agriculture , data_ugs_training)
+summary(Improved_Model3)
+```
+```{r}
+Improved_Model4 <- lm(Unleaded.Gasoline.Sale..UGS.~ Trend+QuarterInfo+X..LPG.Vehicles..NLPG. + Price.of.Unleaded.Gasoline..PU. + X..Unleaded.Gasoline.Vehicles..NUGV. + X..of.Diesel.Gasoline.Vehicles..NDGV. + GNP.Agriculture , data_ugs_training)
+summary(Improved_Model4)
+```
+```{r}
+Improved_Model5 <- lm(Unleaded.Gasoline.Sale..UGS.~ Trend+QuarterInfo+X..LPG.Vehicles..NLPG. + Price.of.Unleaded.Gasoline..PU. + Price.of.Diesel.Gasoline..PG.+ X..Unleaded.Gasoline.Vehicles..NUGV. + X..of.Diesel.Gasoline.Vehicles..NDGV. , data_ugs_training)
+summary(Improved_Model5)
+```
+## Checking Residuals After Adding Regressors
+When we check the residuals graphs, it can be seen that the distribution of residuals is better than the previous model we analyzed in terms of stable variance and having 0 mean. It seems that it has stationary mean. However, variance still seems not be so stable. Namely, there is a still space to improve the model. Because Lag 1 and Lag 4 still have high correlation values, I want to try to add them to the model one by one. When we add Lag 1, the model is improved however adding Lag 4 too is decreasing model performance. So, Lag 1 is enough.
+```{r}
+checkresiduals(Improved_Model3$residuals,warning=FALSE,message=FALSE)
+```
+```{r}
+data_ugs_training$Lag1=lag(data_ugs_training$Unleaded.Gasoline.Sale..UGS.,1)
+
+Improved_Model6 <-  lm(Unleaded.Gasoline.Sale..UGS.~ Trend+QuarterInfo+X..LPG.Vehicles..NLPG. +  Lag1 +Price.of.Diesel.Gasoline..PG.+ X..Unleaded.Gasoline.Vehicles..NUGV. + X..of.Diesel.Gasoline.Vehicles..NDGV. + GNP.Agriculture , data_ugs_training)
+summary(Improved_Model6)
+```
+```{r}
+data_ugs_training$Lag4=lag(data_ugs_training$Unleaded.Gasoline.Sale..UGS.,4)
+
+Improved_Model7 <- lm(Unleaded.Gasoline.Sale..UGS.~ Lag4+Lag1+Trend+QuarterInfo+X..LPG.Vehicles..NLPG. +  Price.of.Diesel.Gasoline..PG.+ X..Unleaded.Gasoline.Vehicles..NUGV. + X..of.Diesel.Gasoline.Vehicles..NDGV. + GNP.Agriculture , data_ugs_training)
+summary(Improved_Model7)
+
+```
+## Prediction
+Firstly, we need to make some data manipulation for forecasting because we have divided data into 2 groups as training and forecast data. So lag 1 value of Q1-2007 is available in training data set and there are no lag values for last 3 rows. After forecasting each UGS value, I will add them as lag 1 for following row to be able to make greater forecasting. 
+
+```{r}
+data_ugs_to_be_forecasted[1,"Lag1"]=data_ugs_training[28,"Unleaded.Gasoline.Sale..UGS."]
+for (i in 1:4){
+  data_ugs_to_be_forecasted[i,"Unleaded.Gasoline.Sale..UGS."]=as.numeric(predict(Improved_Model6,newdata=data_ugs_to_be_forecasted[i,]))
+data_ugs_to_be_forecasted[i+1,"Lag1"]=as.numeric(data_ugs_to_be_forecasted[i,"Unleaded.Gasoline.Sale..UGS."])
+
+}
+data_ugs_to_be_forecasted[,"Unleaded.Gasoline.Sale..UGS."]
+
+
+```
+# Conclusion
+In the report for the given data we searched for correlations, trends, seasonalities etc. By comparing different models, we tried to determine the best model to use. In our approach, I tried to add variables from scratch. Firtly, I determined the most important ones like seasonality and trend. Then, some independent regressors were added to the model. At the end, we have obtained a model with 0.9672 adjusted square. Forecasts are 685005.2, 852934.9,990537.9,818737.0 for Q1-2007, Q2-2007, Q3-2007, and Q4-2007 respectively. 

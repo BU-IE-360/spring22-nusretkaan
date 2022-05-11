@@ -9,6 +9,7 @@
 
 ### Homework2
 [HW2](https://bu-ie-360.github.io/spring22-nusretkaanpolat/files/HW2-IE-360.html)
+
 ### Homework3
 
 

@@ -13,7 +13,7 @@
 ### Homework3
 
 ### Project PDF
-[Project PDF](https://bu-ie-360.github.io/spring22-nusretkaanpolat/files/IE-360-Project-Report.html)
+[Project Report HTML](https://bu-ie-360.github.io/spring22-nusretkaanpolat/files/Project_Report.html)
 
 
 

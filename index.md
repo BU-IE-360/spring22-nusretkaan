@@ -12,8 +12,8 @@
 
 ### Homework3
 
-### Project
-[Project](https://bu-ie-360.github.io/spring22-nusretkaanpolat/blob/gh-pages/files/IE360ProjectReport.html)
+### Project PDF
+[Project PDF](https://bu-ie-360.github.io/spring22-nusretkaanpolat/files/HW1-360-Nusret-Kaan-Polat.html)
 
 
 

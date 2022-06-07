@@ -14,6 +14,7 @@
 
 ### Project PDF
 [Project Report HTML](https://bu-ie-360.github.io/spring22-nusretkaanpolat/files/Project_Report.html)
+[Project Report PDF](https://bu-ie-360.github.io/spring22-nusretkaanpolat/files/IE-360-Project-Report.pdf)
 
 
 

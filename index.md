@@ -12,4 +12,7 @@
 
 ### Homework3
 
+### Project
+[Project](https://github.com/BU-IE-360/spring22-nusretkaanpolat/blob/gh-pages/files/IE%20360%20Project%20-%20Report.pdf)
+
 
